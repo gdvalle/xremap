@@ -7,6 +7,7 @@ use getopts::Options;
 use nix::sys::inotify::Inotify;
 use nix::sys::select::select;
 use nix::sys::select::FdSet;
+use nix::sys::signal::{sigaction, SaFlags, SigAction, SigHandler, SigSet, Signal};
 use std::env;
 use std::error::Error;
 use std::os::unix::io::AsRawFd;
@@ -48,6 +49,11 @@ fn main() {
         Ok(config) => config,
         Err(e) => abort(&format!("Failed to load config '{}': {}", filename, e)),
     };
+
+    let sig_action = SigAction::new(SigHandler::SigDfl, SaFlags::SA_NOCLDWAIT, SigSet::empty());
+    unsafe {
+        sigaction(Signal::SIGCHLD, &sig_action).expect("Failed to register SIGCHLD handler");
+    }
 
     let watch = args.opt_present("watch");
     loop {
