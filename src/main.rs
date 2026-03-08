@@ -32,6 +32,8 @@ mod action;
 mod action_dispatcher;
 mod client;
 mod config;
+#[cfg(feature = "dbus")]
+mod dbus_worker;
 mod device;
 mod emit_handler;
 mod event;
