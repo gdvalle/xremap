@@ -1,6 +1,10 @@
+
+
 use crate::event::{KeyEvent, RelativeEvent};
 use evdev::InputEvent;
 use std::time::Duration;
+#[cfg(feature = "dbus")]
+use crate::config::dbus_action::DbusMethodCall;
 
 // Input to ActionDispatcher. This should only contain things that are easily testable.
 #[derive(Debug)]
@@ -32,4 +36,7 @@ pub enum Action {
     PrintWindowInfo,
     // Print list of open windows
     PrintWindowList,
+    // D-Bus method call
+    #[cfg(feature = "dbus")]
+    DbusMethodCall(DbusMethodCall),
 }

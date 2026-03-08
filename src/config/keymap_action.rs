@@ -8,6 +8,9 @@ use serde::{de, Deserialize, Deserializer};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+#[cfg(feature = "dbus")]
+use super::dbus_action::DbusMethodCall;
+
 // Values in `keymap.remap`
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
@@ -34,6 +37,10 @@ pub enum KeymapAction {
     EscapeNextKey(bool),
     #[serde(deserialize_with = "deserialize_sleep")]
     Sleep(u64),
+    #[cfg(feature = "dbus")]
+    #[serde(deserialize_with = "deserialize_dbus_method")]
+    DbusMethodCall(DbusMethodCall),
+
     #[serde(deserialize_with = "deserialize_close_by_app_class")]
     CloseByAppClass(String),
     #[serde(deserialize_with = "deserialize_action_without_args")]
@@ -158,6 +165,20 @@ where
         }
     }
     Err(de::Error::custom("not a map with a single \"sleep\" key"))
+}
+
+#[cfg(feature = "dbus")]
+fn deserialize_dbus_method<'de, D>(deserializer: D) -> Result<DbusMethodCall, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let mut action = HashMap::<String, DbusMethodCall>::deserialize(deserializer)?;
+    if let Some(call) = action.remove("dbus_method") {
+        if action.is_empty() {
+            return Ok(call);
+        }
+    }
+    Err(de::Error::custom("not a map with a single \"dbus_method\" key"))
 }
 
 pub fn deserialize_close_by_app_class<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {

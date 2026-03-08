@@ -8,17 +8,26 @@ use anyhow::Context;
 use evdev::{uinput::VirtualDevice, EventType, InputEvent, KeyCode as Key};
 use log::{debug, error};
 use std::thread;
+#[cfg(feature = "dbus")]
+use crate::dbus_worker::DbusWorker;
 
 pub struct ActionDispatcher {
     // Device to emit events
     device: VirtualDevice,
     // Throttle emitting events
     throttle_emit: Option<ThrottleEmit>,
+    #[cfg(feature = "dbus")]
+    dbus_worker: Option<DbusWorker>,
 }
 
 impl ActionDispatcher {
     pub fn new(device: VirtualDevice, throttle_emit: Option<ThrottleEmit>) -> ActionDispatcher {
-        ActionDispatcher { device, throttle_emit }
+        ActionDispatcher {
+            device,
+            throttle_emit,
+            #[cfg(feature = "dbus")]
+            dbus_worker: None,
+        }
     }
 
     // Execute Actions created by EventHandler. This should be the only public method of ActionDispatcher.
@@ -32,6 +41,10 @@ impl ActionDispatcher {
             Action::InputEvent(event) => self.send_event(event)?,
             Action::Command(command) => mainctrl.run_command(command),
             Action::Delay(duration) => thread::sleep(duration),
+            #[cfg(feature = "dbus")]
+            Action::DbusMethodCall(call) => {
+                self.dbus_worker.get_or_insert_with(DbusWorker::new).send(call);
+            }
             Action::Exit => {
                 return Ok(Some(MainAction::Exit));
             }
@@ -67,6 +80,10 @@ impl ActionDispatcher {
             | Action::Exit
             | Action::Reload
             | Action::ReloadConfig => {
+                unreachable!();
+            }
+            #[cfg(feature = "dbus")]
+            Action::DbusMethodCall(_) => {
                 unreachable!();
             }
             Action::CloseByAppClass(app_class) => {

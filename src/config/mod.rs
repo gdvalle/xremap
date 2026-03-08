@@ -1,5 +1,7 @@
 pub mod application;
 pub mod deserializers;
+#[cfg(feature = "dbus")]
+pub mod dbus_action;
 pub mod device;
 pub mod expmap;
 pub mod expmap_operator;

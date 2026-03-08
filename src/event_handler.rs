@@ -695,6 +695,8 @@ impl EventHandler {
             KeymapAction::EscapeNextKey(escape_next_key) => self.escape_next_key = *escape_next_key,
             KeymapAction::Sleep(millis) => self.send_action(Action::Delay(Duration::from_millis(*millis))),
             KeymapAction::CloseByAppClass(app_class) => self.actions.push(Action::CloseByAppClass(app_class.clone())),
+            #[cfg(feature = "dbus")]
+            KeymapAction::DbusMethodCall(call) => self.send_action(Action::DbusMethodCall(call.clone())),
             KeymapAction::Action(action) => match action {
                 ActionWithoutArgs::PopWindowInfo => {
                     self.send_action(Action::PopWindowInfo);

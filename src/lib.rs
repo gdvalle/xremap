@@ -28,6 +28,8 @@ mod bridge;
 mod client;
 mod command_runner;
 mod config;
+#[cfg(feature = "dbus")]
+mod dbus_worker;
 mod device;
 mod emit_handler;
 mod event;
