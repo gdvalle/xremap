@@ -6,14 +6,14 @@
 
 ## Table of contents
 
-- [Concept](#Concept)
-- [Features](#Features)
-- [Installation](#Installation)
-- [Usage](#Usage)
-- [Configuration](#Configuration)
-- [Commandline arguments](#Commandline-arguments)
-- [Maintainers](#Maintainers)
-- [License](#License)
+- [Concept](#concept)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Commandline arguments](#commandline-arguments)
+- [Maintainers](#maintainers)
+- [License](#license)
 
 See also: [Documentation section](doc/README.md)
 
@@ -37,6 +37,7 @@ See also: [Documentation section](doc/README.md)
 - Automatically remap newly connected devices by starting xremap with `--watch`.
 - Support [Emacs-like key remapping](example/emacs.yml), including the mark mode.
 - Trigger commands on key press/release events.
+- Call D-Bus methods on key events (requires `dbus` feature).
 - Use a non-modifier key as a virtual modifier key.
 
 ## Installation
@@ -56,6 +57,7 @@ cargo install xremap --features niri     # Niri
 cargo install xremap --features cosmic   # COSMIC Wayland
 cargo install xremap --features pantheon # Pantheon Wayland (aka Secure)
 cargo install xremap --features socket   # Variant for system service
+cargo install xremap --features dbus     # D-Bus method call support
 cargo install xremap                     # Others
 ```
 
@@ -273,6 +275,14 @@ keymap:
       # Execute a command
       MOD1-KEY_XXX4:
         launch: ["bash", "-c", "echo hello > /tmp/test"]
+      # Call a D-Bus method (requires --features dbus)
+      MOD1-KEY_XXX4_1:
+        dbus_method:
+          bus: session # Optional, defaults to session. Can be "system"
+          destination: com.example.MyApp
+          path: /com/example/MyApp
+          interface: com.example.MyApp # Optional
+          method: MyMethod
       # Let `with_mark` also press a Shift key (useful for Emacs emulation)
       MOD1-KEY_XXX5: { set_mark: true } # use { set_mark: false } to disable it
       # Add Shift to output when `set_mark` has been set to `true`.
