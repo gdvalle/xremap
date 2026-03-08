@@ -613,6 +613,8 @@ impl EventHandler {
             KeymapAction::WithMark(key_press) => self.send_key_press_and_release(&self.with_mark(key_press)),
             KeymapAction::EscapeNextKey(escape_next_key) => self.escape_next_key = *escape_next_key,
             KeymapAction::Sleep(millis) => self.send_action(Action::Delay(Duration::from_millis(*millis))),
+            #[cfg(feature = "dbus")]
+            KeymapAction::DbusMethodCall(call) => self.send_action(Action::DbusMethodCall(call.clone())),
             KeymapAction::SetExtraModifiers(keys) => {
                 self.extra_modifiers.clear();
                 for key in keys {

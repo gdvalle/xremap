@@ -8,6 +8,8 @@ use serde::{Deserialize, Deserializer};
 use std::fmt::Debug;
 use std::time::Duration;
 
+#[cfg(feature = "dbus")]
+use super::dbus_action::DbusMethodCall;
 use super::key::parse_key;
 use super::remap::RemapActions;
 
@@ -37,6 +39,9 @@ pub enum KeymapAction {
     EscapeNextKey(bool),
     #[serde(deserialize_with = "deserialize_sleep")]
     Sleep(u64),
+    #[cfg(feature = "dbus")]
+    #[serde(deserialize_with = "deserialize_dbus_method")]
+    DbusMethodCall(DbusMethodCall),
 
     // Internals
     #[serde(skip)]
@@ -181,6 +186,20 @@ where
         }
     }
     Err(de::Error::custom("not a map with a single \"sleep\" key"))
+}
+
+#[cfg(feature = "dbus")]
+fn deserialize_dbus_method<'de, D>(deserializer: D) -> Result<DbusMethodCall, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let mut action = HashMap::<String, DbusMethodCall>::deserialize(deserializer)?;
+    if let Some(call) = action.remove("dbus_method") {
+        if action.is_empty() {
+            return Ok(call);
+        }
+    }
+    Err(de::Error::custom("not a map with a single \"dbus_method\" key"))
 }
 
 // Used only for deserializing Vec<Action>

@@ -8,6 +8,8 @@ use nix::sys::signal::{sigaction, SaFlags, SigAction, SigHandler, SigSet};
 use std::process::{exit, Command, Stdio};
 use std::thread;
 
+#[cfg(feature = "dbus")]
+use crate::dbus_worker::DbusWorker;
 use crate::event::RelativeEvent;
 use crate::{action::Action, event::KeyEvent};
 
@@ -18,6 +20,8 @@ pub struct ActionDispatcher {
     sigaction_set: bool,
     // Throttle emitting events
     throttle_emit: Option<ThrottleEmit>,
+    #[cfg(feature = "dbus")]
+    dbus_worker: Option<DbusWorker>,
 }
 
 impl ActionDispatcher {
@@ -26,6 +30,8 @@ impl ActionDispatcher {
             device,
             sigaction_set: false,
             throttle_emit,
+            #[cfg(feature = "dbus")]
+            dbus_worker: None,
         }
     }
 
@@ -65,6 +71,10 @@ impl ActionDispatcher {
                 }
             },
             Action::Delay(duration) => thread::sleep(duration),
+            #[cfg(feature = "dbus")]
+            Action::DbusMethodCall(call) => {
+                self.dbus_worker.get_or_insert_with(DbusWorker::new).send(call);
+            }
         }
         Ok(())
     }

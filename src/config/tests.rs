@@ -778,3 +778,133 @@ fn yaml_assert_parse(yaml: &str) {
         panic!("{}", e)
     }
 }
+
+#[cfg(feature = "dbus")]
+#[test]
+fn test_yaml_keymap_dbus_method() {
+    yaml_assert_parse(indoc! {r#"
+    keymap:
+      - remap:
+          KEY_F14:
+            dbus_method:
+              destination: com.example.MyApp
+              path: /com/example/MyApp
+              interface: com.example.MyApp
+              method: MyMethod
+    "#})
+}
+
+#[cfg(feature = "dbus")]
+#[test]
+fn test_yaml_keymap_dbus_method_minimal() {
+    yaml_assert_parse(indoc! {r#"
+    keymap:
+      - remap:
+          KEY_F14:
+            dbus_method:
+              destination: com.example.MyApp
+              path: /com/example/MyApp
+              method: MyMethod
+    "#})
+}
+
+#[cfg(feature = "dbus")]
+#[test]
+fn test_yaml_keymap_dbus_method_system_bus() {
+    yaml_assert_parse(indoc! {r#"
+    keymap:
+      - remap:
+          KEY_F14:
+            dbus_method:
+              bus: system
+              destination: org.freedesktop.login1
+              path: /org/freedesktop/login1
+              interface: org.freedesktop.login1.Manager
+              method: Suspend
+    "#})
+}
+
+#[cfg(feature = "dbus")]
+#[test]
+fn test_yaml_keymap_dbus_method_invalid_path() {
+    let errmsg = serde_yaml::from_str::<Config>(indoc! {r#"
+    keymap:
+      - remap:
+          KEY_F14:
+            dbus_method:
+              destination: com.example.MyApp
+              path: not-a-valid-path
+              method: MyMethod
+    "#})
+    .unwrap_err()
+    .to_string();
+
+    assert!(
+        errmsg.contains("data did not match any variant of untagged enum Actions"),
+        "unexpected error: {errmsg}"
+    );
+}
+
+#[cfg(feature = "dbus")]
+#[test]
+fn test_yaml_keymap_dbus_method_invalid_destination() {
+    let errmsg = serde_yaml::from_str::<Config>(indoc! {r#"
+    keymap:
+      - remap:
+          KEY_F14:
+            dbus_method:
+              destination: "not a valid bus name!!!"
+              path: /com/example/MyApp
+              method: MyMethod
+    "#})
+    .unwrap_err()
+    .to_string();
+
+    assert!(
+        errmsg.contains("data did not match any variant of untagged enum Actions"),
+        "unexpected error: {errmsg}"
+    );
+}
+
+#[cfg(feature = "dbus")]
+#[test]
+fn test_yaml_keymap_dbus_method_invalid_method() {
+    let errmsg = serde_yaml::from_str::<Config>(indoc! {r#"
+    keymap:
+      - remap:
+          KEY_F14:
+            dbus_method:
+              destination: com.example.MyApp
+              path: /com/example/MyApp
+              method: "not valid!"
+    "#})
+    .unwrap_err()
+    .to_string();
+
+    assert!(
+        errmsg.contains("data did not match any variant of untagged enum Actions"),
+        "unexpected error: {errmsg}"
+    );
+}
+
+#[cfg(feature = "dbus")]
+#[test]
+fn test_yaml_modmap_press_release_dbus_method() {
+    yaml_assert_parse(indoc! {r#"
+    modmap:
+      - remap:
+          KEY_F14:
+            press:
+              dbus_method:
+                destination: com.example.MyApp
+                path: /com/example/MyApp
+                interface: com.example.MyApp
+                method: MyMethod
+            release:
+              dbus_method:
+                destination: com.example.MyApp
+                path: /com/example/MyApp
+                interface: com.example.MyApp
+                method: MyOtherMethod
+    "#})
+}

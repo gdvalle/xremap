@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use evdev::InputEvent;
 
+#[cfg(feature = "dbus")]
+use crate::config::dbus_action::DbusMethodCall;
 use crate::event::{KeyEvent, RelativeEvent};
 
 // Input to ActionDispatcher. This should only contain things that are easily testable.
@@ -20,4 +22,7 @@ pub enum Action {
     Command(Vec<String>),
     // keypress_delay_ms
     Delay(Duration),
+    // D-Bus method call
+    #[cfg(feature = "dbus")]
+    DbusMethodCall(DbusMethodCall),
 }
