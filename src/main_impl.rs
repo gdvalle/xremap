@@ -20,6 +20,7 @@ use crate::timeout_manager::TimeoutManager;
 use anyhow::{anyhow, bail, Context};
 use clap::{CommandFactory, Parser, ValueEnum};
 use clap_complete::Shell;
+use log::{debug, info, warn};
 use nix::libc::ENODEV;
 use nix::sys::select::{select, FdSet};
 use nix::sys::timerfd::{ClockId, TimerFd, TimerFlags};
@@ -207,6 +208,10 @@ pub fn xremap_cli(mut plugin: impl Plugin) -> anyhow::Result<()> {
 
         // Watchers
         let device_watcher = DeviceWatcher::new(watch_devices).context("Setting up device watcher")?;
+        info!(
+            "Watching {} device(s); device watch: {watch_devices}, config watch: {watch_config}",
+            input_devices.len()
+        );
         let mut config_watcher =
             ConfigWatcher::new(watch_config, config_paths.clone(), config.config_watch_debounce_ms)?;
 
@@ -214,7 +219,7 @@ pub fn xremap_cli(mut plugin: impl Plugin) -> anyhow::Result<()> {
         let mut mainctrl = MainController::new(!no_window_logging, allow_launch.unwrap_or(true));
 
         // OperatorHandler
-        let operator_handler = if config.experimental_map.len() > 0 {
+        let operator_handler = if !config.experimental_map.is_empty() {
             Some(OperatorHandler::new(&config.experimental_map, timeout_manager.clone()))
         } else {
             None
@@ -285,19 +290,19 @@ pub fn xremap_cli(mut plugin: impl Plugin) -> anyhow::Result<()> {
                         if config.notifications {
                             mainctrl.show_popup("Config error", Some(&err.to_string()));
                         }
-                        println!("Config error: {}", err.to_string());
+                        println!("Config error: {}", err);
                         continue 'event_loop;
                     }
                 },
                 MainAction::RemoveDevice(device_info) => {
-                    println!("Found a removed device: {:?}", device_info.name);
+                    info!("Removed device '{}' at '{}'", device_info.name, device_info.path.display());
                     input_devices.retain(|path, _| device_info.path != *path);
 
                     if input_devices.is_empty() {
                         if watch_devices {
-                            println!("No device was selected, but --watch is waiting for new devices.");
+                            info!("No device was selected, but --watch is waiting for new devices.");
                         } else {
-                            bail!("Last device was removed, and not watching for new devices");
+                            bail!("Last device was removed, and not watching for new devices (pass --watch=device)");
                         }
                     }
                     continue 'event_loop;
@@ -324,24 +329,22 @@ fn event_loop(
 ) -> anyhow::Result<MainAction> {
     'event_loop: loop {
         let readable_fds =
-            select_readable(input_devices.values(), &device_watcher, &config_watcher, &handler, &timeout_manager)?;
+            select_readable(input_devices.values(), device_watcher, config_watcher, &handler, timeout_manager)?;
 
         if readable_fds.contains(&handler.as_fd().as_raw_fd()) {
-            match handle_events(handler, dispatcher, &config, vec![Event::OverrideTimeout], mainctrl, plugin) {
+            match handle_events(handler, dispatcher, config, vec![Event::OverrideTimeout], mainctrl, plugin) {
                 Ok(None) => {}
                 Ok(Some(main_action)) => return Ok(main_action),
                 Err(error) => println!("Error on remap timeout: {error}"),
             };
         }
 
-        if readable_fds.contains(&timeout_manager.as_fd().as_raw_fd()) {
-            if timeout_manager.need_timeout()? {
-                match handle_events(handler, dispatcher, config, vec![Event::Tick], mainctrl, plugin) {
-                    Ok(None) => {}
-                    Ok(Some(main_action)) => return Ok(main_action),
-                    Err(error) => println!("Error on timeout: {error}"),
-                };
-            }
+        if readable_fds.contains(&timeout_manager.as_fd().as_raw_fd()) && timeout_manager.need_timeout()? {
+            match handle_events(handler, dispatcher, config, vec![Event::Tick], mainctrl, plugin) {
+                Ok(None) => {}
+                Ok(Some(main_action)) => return Ok(main_action),
+                Err(error) => println!("Error on timeout: {error}"),
+            };
         }
 
         for input_device in input_devices.values_mut() {
@@ -349,8 +352,7 @@ fn event_loop(
                 continue;
             }
 
-            if let Some(main_action) =
-                handle_input_events(input_device, handler, dispatcher, &config, mainctrl, plugin)?
+            if let Some(main_action) = handle_input_events(input_device, handler, dispatcher, config, mainctrl, plugin)?
             {
                 return Ok(main_action);
             }
@@ -358,14 +360,13 @@ fn event_loop(
 
         if let Some(device_watcher) = &device_watcher {
             if let Ok(events) = device_watcher.read_events() {
-                handle_device_changes(events, input_devices, &device_filter, &ignore_filter, mouse, &own_device);
+                handle_device_changes(events, input_devices, device_filter, ignore_filter, mouse, own_device);
             }
         }
 
         if let Some(config_watcher) = config_watcher.as_mut() {
-            match config_watcher.handle(readable_fds) {
-                Ok(Some(action)) => return Ok(action),
-                _ => {}
+            if let Ok(Some(action)) = config_watcher.handle(readable_fds) {
+                return Ok(action);
             };
             continue 'event_loop;
         }
@@ -456,23 +457,39 @@ fn handle_device_changes(
     mouse: bool,
     own_device: &str,
 ) {
-    // Ignore already grabbed devices.
-    // A problem that could occur is an old device in `input_devices` which is stale.
-    // So ignoring an event for that path would be incorrect. But `handle_input_events` removes
-    // the devices reliably, before this function gets an event for a new devive on the same path.
-    let mut ignore: Vec<PathBuf> = input_devices.iter().map(|(path, _)| path).cloned().collect();
+    for path in events {
+        debug!("/dev/input change: {}", path.display());
 
-    input_devices.extend(events.into_iter().filter_map(|path| {
-        if ignore.contains(&path) {
-            return None;
+        // A device can be re-attached at a path we still hold open, because the
+        // kernel reuses /dev/input/eventXX. The held descriptor then refers to the
+        // device that is gone, so the path must be re-grabbed instead of ignored.
+        if let Some(held) = input_devices.get(&path) {
+            if held.points_at(&path) {
+                continue;
+            }
         }
-        ignore.push(path.clone());
-        let mut device = open_device(path)?;
-        if device.is_input_device(device_filter, ignore_filter, mouse, own_device) && device.grab() {
+        if let Some(held) = input_devices.remove(&path) {
+            let name = held.device_name().to_string();
+            if !path.exists() {
+                info!("Removed device '{name}' at '{}'", path.display());
+                continue;
+            }
+            warn!("Device at '{}' was re-attached ('{name}' descriptor is stale); re-grabbing", path.display());
+        } else if !path.exists() {
+            continue;
+        }
+
+        let Some(mut device) = open_device(path.clone()) else {
+            debug!("Could not open '{}'", path.display());
+            continue;
+        };
+        if !device.is_input_device(device_filter, ignore_filter, mouse, own_device) {
+            debug!("Ignoring '{}' at '{}': does not match the device filter", device.device_name(), path.display());
+            continue;
+        }
+        if device.grab() {
             device.print();
-            Some(device.into())
-        } else {
-            None
+            input_devices.insert(path, device);
         }
-    }));
+    }
 }

@@ -3,7 +3,7 @@ use anyhow::bail;
 use derive_where::derive_where;
 use evdev::uinput::VirtualDevice;
 use evdev::{AttributeSet, BusType, Device, FetchEventsSynced, InputId, KeyCode as Key, RelativeAxisCode};
-use log::debug;
+use log::{debug, info};
 use nix::libc::{EBUSY, ENODEV};
 use std::collections::HashMap;
 use std::fs::{self, read_dir};
@@ -283,8 +283,16 @@ impl InputDevice {
         }
 
         match self.device.grab() {
-            Ok(_) => true,
+            Ok(_) => {
+                info!("Grabbed '{}' at '{}'", self.device_name(), self.path.display());
+                true
+            }
             Err(err) if err.raw_os_error() == Some(ENODEV) => {
+                info!(
+                    "Device '{}' at '{}' vanished before it could be grabbed",
+                    self.device_name(),
+                    self.path.display()
+                );
                 // There's no point of printing errors when devices don't exist, because
                 // this function is only called just after the information is received, that the device
                 // does exist. So it's a race-condition, where the device was quickly removed.
@@ -341,6 +349,21 @@ impl InputDevice {
         }
     }
 
+    /// True when this open descriptor still refers to the device currently at `path`.
+    /// Removing and re-attaching a device (unplug, KVM switch) gives it a new device
+    /// number even when the kernel reuses the same `/dev/input/eventXX` path, so a
+    /// stale descriptor can be told apart from a live one.
+    pub fn points_at(&self, path: &Path) -> bool {
+        use std::os::unix::fs::MetadataExt;
+        let Ok(current) = fs::metadata(path) else {
+            return false;
+        };
+        let Ok(held) = nix::sys::stat::fstat(self.device.as_fd()) else {
+            return false;
+        };
+        held.st_rdev as u64 == current.rdev()
+    }
+
     pub fn is_input_device(
         &self,
         device_filter: &[String],
@@ -395,7 +418,7 @@ impl InputDevice {
         let switches = evdev_enums_to_string(self.device.supported_switches().unwrap_or_default());
 
         println!("{}", self.device_name());
-        println!("");
+        println!();
         println!("  Path:            {}", self.path.display());
         println!("  Type:            {}", self.bus_type());
         println!(
@@ -412,7 +435,7 @@ impl InputDevice {
         println!("  Absolute axes:   {}", absolute);
         println!("  Leds:            {}", leds);
         println!("  Switches:        {}", switches);
-        println!("");
+        println!();
     }
 }
 

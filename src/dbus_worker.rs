@@ -1,5 +1,5 @@
 use crate::config::dbus_action::{BusType, DbusMethodCall};
-use log::error;
+use log::{error, info};
 use std::sync::mpsc;
 
 pub struct DbusWorker {
@@ -20,6 +20,7 @@ impl DbusWorker {
     }
 
     pub fn send(&self, call: DbusMethodCall) {
+        info!("D-Bus {:?} call {}.{}", call.bus, call.destination, call.method);
         if let Err(e) = self.sender.try_send(call) {
             error!("D-Bus action dropped: {e}");
         }
