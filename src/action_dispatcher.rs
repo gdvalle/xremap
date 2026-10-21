@@ -1,4 +1,6 @@
 use crate::client::print_windows;
+#[cfg(feature = "dbus")]
+use crate::dbus_worker::DbusWorker;
 use crate::event::RelativeEvent;
 use crate::main_controller::MainController;
 use crate::main_impl::MainAction;
@@ -8,8 +10,6 @@ use anyhow::Context;
 use evdev::{uinput::VirtualDevice, EventType, InputEvent, KeyCode as Key};
 use log::{debug, error};
 use std::thread;
-#[cfg(feature = "dbus")]
-use crate::dbus_worker::DbusWorker;
 
 pub struct ActionDispatcher {
     // Device to emit events

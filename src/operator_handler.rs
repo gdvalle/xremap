@@ -106,7 +106,7 @@ fn get_static_operators(
         ExpmapOperator::OneShot(action) => OneshotOperator::get_ops(key, *action),
         ExpmapOperator::Select(operators) => operators
             .iter()
-            .flat_map(|operator| get_static_operators(key, operator, &timeout_manager))
+            .flat_map(|operator| get_static_operators(key, operator, timeout_manager))
             .collect(),
     }
 }
@@ -220,7 +220,7 @@ fn process_event(
                                 candidates.events.push(event.clone());
                                 try_candidates(event, &mut left, candidates)
                             }
-                            None => static_lookup(event, &mut left, candidates, &lookup_map, &mut emit, wmclient),
+                            None => static_lookup(event, &mut left, candidates, lookup_map, &mut emit, wmclient),
                         };
                     }
                 };

@@ -84,7 +84,7 @@ impl Interruptable {
         match self {
             Interruptable::All(all) => *all,
             Interruptable::Only { only: Keys::Key(only) } => key == *only,
-            Interruptable::Only { only: Keys::Keys(only) } => only.iter().any(|k| key == *k),
+            Interruptable::Only { only: Keys::Keys(only) } => only.contains(&key),
             Interruptable::Not { not: Keys::Key(not) } => key != *not,
             Interruptable::Not { not: Keys::Keys(not) } => not.iter().all(|k| key != *k),
         }

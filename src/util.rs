@@ -73,9 +73,9 @@ pub fn print_table(table: Vec<Vec<String>>) {
     for row in table {
         for n in 0..column_count {
             let padding_size = column_widths[n] - row[n].chars().count();
-            let padding = std::iter::repeat(" ").take(padding_size + 1).collect::<String>();
+            let padding = std::iter::repeat_n(" ", padding_size + 1).collect::<String>();
             print!("{}{}", row[n], padding);
         }
-        println!("");
+        println!();
     }
 }

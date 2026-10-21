@@ -199,7 +199,7 @@ pub fn build_client(log_window_changes: bool) -> WMClient {
         WMClient::new("DeviceTest", Box::new(null_client::DeviceTestClient), log_window_changes),
     ];
 
-    if clients.len() == 0 {
+    if clients.is_empty() {
         WMClient::new("none", Box::new(null_client::NullClient), log_window_changes)
     } else if clients.len() == 1 {
         clients.into_iter().next().unwrap()

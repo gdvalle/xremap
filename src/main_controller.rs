@@ -17,7 +17,7 @@ impl MainController {
         }
     }
 
-    pub fn wmclient<'a>(&'a mut self) -> &'a mut WMClient {
+    pub fn wmclient(&mut self) -> &mut WMClient {
         &mut self.wmclient
     }
 

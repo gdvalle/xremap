@@ -1,7 +1,7 @@
 pub mod application;
-pub mod deserializers;
 #[cfg(feature = "dbus")]
 pub mod dbus_action;
+pub mod deserializers;
 pub mod device;
 pub mod expmap;
 pub mod expmap_operator;
@@ -170,5 +170,5 @@ where
         }
     }
 
-    Err(serde::de::Error::custom(format!("This error is never shown in an untagged enum")))
+    Err(serde::de::Error::custom("This error is never shown in an untagged enum".to_string()))
 }

@@ -112,7 +112,7 @@ impl EventHandler {
             wmclient.clear_app_class_and_title();
 
             if let Event::KeyEvent(_, key_event) = &event {
-                debug!("=> {}: {:?}", key_event.value(), &key_event.key);
+                debug!("=> {}: {:?}", key_event.value(), key_event.key);
             }
 
             // Apply modmap
@@ -371,8 +371,8 @@ impl EventHandler {
 
         if !pressed.is_empty() {
             let mut flushed: Vec<(Key, i32)> = vec![];
-            for (_, state) in self.multi_purpose_keys.iter_mut() {
-                flushed.extend(state.interrupted_by_press(&*pressed));
+            for state in self.multi_purpose_keys.values_mut() {
+                flushed.extend(state.interrupted_by_press(&pressed));
             }
 
             // filter out key presses that are part of the flushed events
@@ -405,7 +405,7 @@ impl EventHandler {
                 let key = key_event.key;
                 let value = key_event.value();
 
-                let mut key_values = if let Some(key_action) = self.find_modmap(config, &key, &device, wmclient) {
+                let mut key_values = if let Some(key_action) = self.find_modmap(config, &key, device, wmclient) {
                     self.dispatch_keys(key_action, key, value)?
                 } else {
                     vec![(key, value)]
@@ -427,7 +427,7 @@ impl EventHandler {
                 let pressed = vec![Key(relative_event.to_disguised_key())];
 
                 let mut events = vec![];
-                for (_, state) in self.multi_purpose_keys.iter_mut() {
+                for state in self.multi_purpose_keys.values_mut() {
                     events.extend(state.interrupted_by_press(&pressed));
                 }
 

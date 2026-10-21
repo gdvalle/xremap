@@ -72,12 +72,11 @@ pub enum KeyValue {
 impl Event {
     // Convert evdev's raw InputEvent to xremap's internal Event
     pub fn new(device: Rc<InputDeviceInfo>, event: InputEvent) -> Event {
-        let event = match event.event_type() {
+        match event.event_type() {
             EventType::KEY => Event::KeyEvent(device, KeyEvent::new_with(event.code(), event.value())),
             EventType::RELATIVE => Event::RelativeEvent(device, RelativeEvent::new_with(event.code(), event.value())),
             _ => Event::OtherEvents(event),
-        };
-        event
+        }
     }
 }
 

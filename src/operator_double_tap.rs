@@ -23,7 +23,7 @@ impl DoubleTapOperator {
         timeout_manager: Rc<TimeoutManager>,
     ) -> Vec<(Key, Box<dyn StaticOperator>)> {
         vec![(
-            key.clone(),
+            key,
             Box::new(DoubleTapOperator {
                 actions: dbltap.actions.clone(),
                 timeout: dbltap.timeout,

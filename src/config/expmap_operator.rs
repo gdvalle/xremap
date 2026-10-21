@@ -28,7 +28,7 @@ pub fn deserialize_oneshot<'de, D: Deserializer<'de>>(deserializer: D) -> Result
 }
 
 pub fn deserialize_select<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<ExpmapOperator>, D::Error> {
-    Ok(deserialize_single_field::<D, Vec<ExpmapOperator>>(deserializer, "select")?)
+    deserialize_single_field::<D, Vec<ExpmapOperator>>(deserializer, "select")
 }
 
 #[derive(Clone, Debug, Deserialize)]

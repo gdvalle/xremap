@@ -23,7 +23,7 @@ impl StaticOperator for OneshotOperator {
         match event {
             Event::KeyEvent(_, _) => Box::new(ActiveOneshotOperator {
                 key: self.key,
-                action: self.action.clone(),
+                action: self.action,
                 state: State::New,
             }),
             _ => {
