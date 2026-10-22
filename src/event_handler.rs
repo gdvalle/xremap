@@ -111,8 +111,8 @@ impl EventHandler {
         for event in events {
             wmclient.clear_app_class_and_title();
 
-            if let Event::KeyEvent(_, key_event) = &event {
-                debug!("=> {}: {:?}", key_event.value(), key_event.key);
+            if let Event::KeyEvent(device, key_event) = &event {
+                debug!("=> {}: {:?} ({} at {})", key_event.value(), key_event.key, device.name, device.path.display());
             }
 
             // Apply modmap
